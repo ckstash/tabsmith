@@ -61,7 +61,7 @@ metrics = model.evaluate_holdout()
 print(metrics)
 
 # Predict on masked data
-X_masked = mask_df(df.iloc[:5], masking_prob=0.5, masking_value=-1, seed=42)
+X_masked = mask_df(df.iloc[:5], masking_value=-1, masking_prob=0.5, seed=42)
 preds = model.predict(X_masked)
 print(model.decode_predictions(preds))
 
@@ -102,7 +102,7 @@ print(cv_results)
 ## 🧪 Utilities
 
 - `encode_dataframe(df)`: Encode all categorical columns with `LabelEncoder`.
-- `mask_df(df, masking_prob, masking_value, seed)`: Randomly mask entries in a DataFrame.
+- `mask_df(df, masking_value, masking_prob, seed)`: Randomly mask entries in a DataFrame.
 - `pretty_print_holdout(metrics)`: Nicely format holdout metrics.
 - `plot_feature_importances(importances)`: Plot feature importances from a dict or list.
 

@@ -34,26 +34,33 @@ def encode_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df_encoded
 
 
-def mask_df(df: pd.DataFrame, masking_prob: float, masking_value, seed: int) -> pd.DataFrame:
+def mask_df(df: pd.DataFrame, masking_value: Union[float, int, None] = -1.0, masking_prob: float = 0.5, seed: int = 42) -> pd.DataFrame:
     """Randomly mask entries in a DataFrame.
 
-    This utility is intended for testing. It randomly replaces a proportion
-    of entries in the DataFrame with a specified masking value or NaN.
+    This utility is intended for testing purposes. It creates a copy of the
+    input DataFrame and randomly replaces a proportion of its entries with
+    a specified masking value or ``NaN``.
 
     Args:
-        df (pd.DataFrame): The input DataFrame to mask.
-        masking_prob (float): Probability of masking each individual cell
-            (between 0 and 1).
-        masking_value: Value to insert in masked positions. If `None` or NaN,
-            masked entries are set to `np.nan`.
-        seed (int): Random seed for reproducibility.
+        df (pd.DataFrame):
+            The input DataFrame to apply masking to.
+        masking_value (Union[float, int, None], optional):
+            Value to insert in masked positions. If ``None`` or ``NaN``,
+            masked entries are set to ``numpy.nan``. Defaults to ``-1.0``.
+        masking_prob (float, optional):
+            Probability of masking each individual cell, between 0 and 1.
+            Defaults to ``0.5``.
+        seed (int, optional):
+            Random seed for reproducibility. Defaults to ``42``.
 
     Returns:
-        pd.DataFrame: A copy of the input DataFrame with some entries masked.
+        pd.DataFrame:
+            A copy of the input DataFrame with some entries masked.
 
     Notes:
         - Masking is applied independently to each cell.
-        - If `masking_value` is a float NaN or `None`, pandas' `.mask()` is used.
+        - If ``masking_value`` is ``None`` or a float ``NaN``, pandas'
+          :meth:`DataFrame.mask` is used to insert ``NaN`` values.
     """
     rng = np.random.default_rng(seed)
     mask = rng.random(size=df.shape) < masking_prob
