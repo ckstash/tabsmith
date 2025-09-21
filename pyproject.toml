@@ -1,8 +1,8 @@
 [project]
 name = "tabsmith"
-version = "0.1.1"
+version = "0.1.7"
 license = { file = "LICENSE" }
-description = "Tabsmith: Fitting multi-target tabular ML classifiers with overlapping inputs and targets."
+description = "TabSmith: Fitting multi-target tabular ML classifiers with overlapping inputs and targets."
 readme = "README.md"
 authors = [
     { name = "Chinmay Kakatkar", email = "kcpub21@gmail.com" }

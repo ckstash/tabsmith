@@ -1,6 +1,6 @@
-# Tabsmith: Fitting multi-target tabular ML classifiers with overlapping inputs and targets
+# TabSmith
 
-**Tabsmith** is a flexible, scikit‑learn‑compatible framework for using multi-target ML classifiers to train models that can work as both conventional classifiers and denoisers on tabular datasets. The concept is described in [this article](https://medium.com/data-science/dawn-of-the-denoisers-multi-output-ml-models-for-tabular-data-imputation-317711d7a193).
+**TabSmith** can fit multi-target tabular ML classifiers with overlapping inputs and targets. It is a flexible, scikit‑learn‑compatible framework for repurposing multi-target classifiers to work as both conventional classifiers and denoisers depending on the inputs. The concept is described in [this article](https://medium.com/data-science/dawn-of-the-denoisers-multi-output-ml-models-for-tabular-data-imputation-317711d7a193).
 
 ---
 
@@ -40,7 +40,7 @@ df = pd.read_csv("titanic.csv")
 input_features = ["Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Cabin", "Embarked"]
 target_features = ["Survived", "Pclass", "Sex", "SibSp"]
 
-# Initialize base model and Tabsmith wrapper
+# Initialize base model and TabSmith wrapper
 base_model = RandomForestClassifier(n_estimators=100, random_state=42)
 model = TSModel(base_model=base_model)
 
