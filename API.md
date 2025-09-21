@@ -58,45 +58,6 @@ Initialize TSModel.
 
 - `ValueError` - If mask_prob is not in [0, 1].
 
-<a id="tabsmith.model.TSModel.fit0"></a>
-
-#### fit0
-
-```python
-def fit0(df: Union[pd.DataFrame, np.ndarray],
-         input_columns: Optional[Iterable] = None,
-         target_columns: Optional[Iterable] = None,
-         test_prop: float = 0.2,
-         masking_value: Union[float, int, None] = -1.0,
-         random_seed: int = 42,
-         upsampling_factor: int = 1) -> "TSModel"
-```
-
-Train the classifier as a denoiser on masked inputs.
-
-The model is trained to predict original target values from randomly masked
-inputs. Columns may overlap between inputs and targets. During prediction,
-overlapping columns are treated as inputs if provided; otherwise, they are
-predicted (imputed).
-
-**Arguments**:
-
-- `df` - Training dataset.
-- `input_columns` - Columns to use as input features. If None and target_columns
-  is None, all columns are used as both inputs and targets.
-- `target_columns` - Columns to predict. If None but input_columns is provided,
-  targets are the remaining columns.
-- `test_prop` - Fraction to hold out for evaluation (0 <= test_prop < 1). If 0,
-  no holdout set is created.
-- `masking_value` - Value representing masked entries during training and at inference.
-- `random_seed` - Seed for reproducible masking/splitting.
-- `upsampling_factor` - Multiplier for training rows prior to masking.
-  
-
-**Returns**:
-
-- `TSModel` - The fitted instance.
-
 <a id="tabsmith.model.TSModel.fit"></a>
 
 #### fit
