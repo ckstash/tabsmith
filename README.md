@@ -42,7 +42,7 @@ target_features = ["Survived", "Pclass", "Sex", "SibSp"]
 
 # Initialize base model and Tabsmith wrapper
 base_model = RandomForestClassifier(n_estimators=100, random_state=42)
-model = TSModel(base_model=base_model, mask_prob=0.5)
+model = TSModel(base_model=base_model)
 
 # Fit with auto‑encoding and masking
 model.fit(
@@ -51,6 +51,7 @@ model.fit(
     target_columns=target_features,
     test_prop=0.2,
     masking_value=-1,
+    masking_prob=0.5,
     random_seed=42,
     upsampling_factor=2,
 )
@@ -60,7 +61,7 @@ metrics = model.evaluate_holdout()
 print(metrics)
 
 # Predict on masked data
-X_masked = mask_df(df.iloc[:5], mask_prob=0.5, masking_value=-1, seed=42)
+X_masked = mask_df(df.iloc[:5], masking_prob=0.5, masking_value=-1, seed=42)
 preds = model.predict(X_masked)
 print(model.decode_predictions(preds))
 
@@ -90,6 +91,7 @@ cv_results = model.cross_validate_kfold(
     target_columns=target_features,
     k=3,
     masking_value=-1,
+    masking_prob=0.5,
     random_seed=42,
 )
 print(cv_results)
@@ -100,7 +102,7 @@ print(cv_results)
 ## 🧪 Utilities
 
 - `encode_dataframe(df)`: Encode all categorical columns with `LabelEncoder`.
-- `mask_df(df, mask_prob, masking_value, seed)`: Randomly mask entries in a DataFrame.
+- `mask_df(df, masking_prob, masking_value, seed)`: Randomly mask entries in a DataFrame.
 - `pretty_print_holdout(metrics)`: Nicely format holdout metrics.
 - `plot_feature_importances(importances)`: Plot feature importances from a dict or list.
 

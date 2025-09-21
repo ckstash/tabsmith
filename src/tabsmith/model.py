@@ -24,36 +24,29 @@ class TSModel:
 
     Attributes:
         base_model (ClassifierMixin): User-provided multi-output classifier prototype.
-        mask_prob (float): Probability used to mask any given input cell during training.
         fitted_model (Optional[ClassifierMixin]): Trained classifier after `fit`.
         input_columns (Optional[List[Union[str, int]]]): Columns used as inputs.
         target_columns (Optional[List[Union[str, int]]]): Columns used as targets.
         masking_value (Optional[Union[float, int]]): Placeholder used to denote missingness.
+        masking_prob (float): Probability used to mask any given input cell during training.
         df_holdout (Optional[pd.DataFrame]): Held-out evaluation dataframe (unmodified).
         df_holdout_masked (Optional[pd.DataFrame]): Masked inputs corresponding to the holdout.
     """
 
-    def __init__(self, base_model: ClassifierMixin, mask_prob: float = 0.5) -> None:
+    def __init__(self, base_model: ClassifierMixin) -> None:
         """Initialize TSModel.
 
         Args:
             base_model (ClassifierMixin): Any multi-output-capable classifier
                 (e.g., DecisionTreeClassifier, RandomForestClassifier). It is cloned in fit().
-            mask_prob (float): Probability of masking an input cell during denoising training.
-                Must be in [0, 1].
-
-        Raises:
-            ValueError: If mask_prob is not in [0, 1].
         """
-        if not (0.0 <= mask_prob <= 1.0):
-            raise ValueError("mask_prob must be in [0, 1].")
         self.base_model = base_model
-        self.mask_prob = mask_prob
 
         self.fitted_model: Optional[ClassifierMixin] = None
         self.input_columns: Optional[List[Union[str, int]]] = None
         self.target_columns: Optional[List[Union[str, int]]] = None
         self.masking_value: Optional[Union[float, int]] = None
+        self.masking_prob: float = None
 
         self.df_holdout: Optional[pd.DataFrame] = None
         self.df_holdout_masked: Optional[pd.DataFrame] = None
@@ -93,18 +86,19 @@ class TSModel:
             m = m | (s == self.masking_value)
         return m
 
-    def _random_masking(self, df_inputs: pd.DataFrame, random_seed: int) -> pd.DataFrame:
+    def _random_masking(self, df_inputs: pd.DataFrame, masking_prob: float, random_seed: int) -> pd.DataFrame:
         """Apply random masking to inputs for denoising training.
 
         Args:
             df_inputs (pd.DataFrame): Input feature dataframe to mask.
+            masking_prob (float): Probability used to mask any given cell.
             random_seed (int): Seed for reproducibility.
 
         Returns:
             pd.DataFrame: Masked inputs.
         """
         rng = np.random.default_rng(random_seed)
-        mask = rng.random(size=df_inputs.shape) < self.mask_prob
+        mask = rng.random(size=df_inputs.shape) < masking_prob
         df_masked = df_inputs.copy()
 
         # Use np.nan if masking_value is None or NaN; else use masking_value
@@ -137,18 +131,14 @@ class TSModel:
         Raises:
             ValueError: If provided columns are not present in df.
         """
-        if input_columns is None and target_columns is None:
-            cols = list(df.columns)
-            return cols, cols
-
         if input_columns is None:
-            input_columns = list(set(df.columns) - set(target_columns))
+            input_columns = list(df.columns)
         if target_columns is None:
-            target_columns = list(set(df.columns) - set(input_columns))
+            target_columns = list(df.columns)
 
+        # Check for missing columns
         input_columns = list(input_columns)
         target_columns = list(target_columns)
-
         missing_inputs = [c for c in input_columns if c not in df.columns]
         missing_targets = [c for c in target_columns if c not in df.columns]
         if missing_inputs:
@@ -168,6 +158,7 @@ class TSModel:
         target_columns: Optional[Iterable] = None,
         test_prop: float = 0.2,
         masking_value: Union[float, int, None] = -1.0,
+        masking_prob: float = 0.5,
         random_seed: int = 42,
         upsampling_factor: int = 1,
     ) -> "TSModel":
@@ -178,7 +169,7 @@ class TSModel:
         * Ensures the masking value is part of each encoder's classes.
         * Optionally splits into training and holdout sets.
         * Optionally upsamples the training set.
-        * Masks inputs randomly according to `mask_prob`.
+        * Masks inputs randomly according to `masking_prob`.
         * Drops rows with missing targets before fitting.
 
         Args:
@@ -187,6 +178,7 @@ class TSModel:
             target_columns: Columns to predict. If None, inferred.
             test_prop: Fraction of data to hold out for evaluation.
             masking_value: Value used to represent masked entries.
+            masking_prob: Probability of masking an input cell during denoising training.
             random_seed: Random seed for reproducibility.
             upsampling_factor: Multiplier for training rows before masking.
 
@@ -195,6 +187,9 @@ class TSModel:
         """
         if not (0.0 <= test_prop < 1.0):
             raise ValueError("test_prop must be in [0, 1).")
+
+        if not (0.0 <= masking_prob <= 1.0):
+            raise ValueError("masking_prob must be in [0, 1].")
 
         self.masking_value = masking_value
         df = self._to_dataframe(df)
@@ -250,7 +245,7 @@ class TSModel:
         else:
             Y_train = Y_train.loc[mask_complete_targets]
 
-        X_train_masked = self._random_masking(X_train, random_seed=random_seed)
+        X_train_masked = self._random_masking(X_train, masking_prob=masking_prob, random_seed=random_seed)
 
         # Fit base model
         model = clone(self.base_model)
@@ -259,7 +254,7 @@ class TSModel:
         # Store holdout for evaluation
         self.df_holdout = df_holdout.copy()
         if not df_holdout.empty:
-            self.df_holdout_masked = self._random_masking(df_holdout[self.input_columns], random_seed=random_seed)
+            self.df_holdout_masked = self._random_masking(df_holdout[self.input_columns], masking_prob=masking_prob, random_seed=random_seed)
         else:
             self.df_holdout_masked = pd.DataFrame(columns=self.input_columns)
 
@@ -594,14 +589,70 @@ class TSModel:
     def cross_validate_kfold(
         self,
         df: pd.DataFrame,
-        input_columns=None,
-        target_columns=None,
+        input_columns: Optional[Iterable] = None,
+        target_columns: Optional[Iterable] =None,
         k: int = 5,
-        masking_value=-1,
+        masking_value: Union[float, int, None] = -1.0,
+        masking_prob: float = 0.5,
         random_seed: int = 42,
         upsampling_factor: int = 1,
     ):
-        """Perform K-fold cross-validation with clean per-target metrics and masked-value handling."""
+        """Perform K-fold cross-validation with per-target metrics and masked-value handling.
+
+        This method splits the provided dataset into ``k`` folds, training and evaluating
+        the model on each fold. It supports masking a proportion of input values to simulate
+        missing data (denoising) and computes clean per-target metrics by excluding masked
+        values and predictions outside the set of trained classes.
+
+        For each fold:
+        * A new model instance is trained on the training split.
+        * The test split is masked according to ``masking_prob`` and ``masking_value``.
+        * Predictions are generated and evaluated only on valid, unmasked entries.
+        * Accuracy, precision, recall, and F1-score are computed per target column
+            and averaged across targets.
+
+        Args:
+            df (pd.DataFrame):
+                Input dataset containing both features and target columns.
+            input_columns (Optional[Iterable], default=None):
+                List or iterable of column names to use as input features.
+                If ``None``, input columns are inferred automatically.
+            target_columns (Optional[Iterable], default=None):
+                List or iterable of column names to use as prediction targets.
+                If ``None``, target columns are inferred automatically.
+            k (int, default=5):
+                Number of folds for K-fold cross-validation.
+            masking_value (Union[float, int, None], default=-1.0):
+                Value used to represent masked (missing) entries in the dataset.
+            masking_prob (float, default=0.5):
+                Probability of masking each input value during evaluation.
+            random_seed (int, default=42):
+                Random seed for reproducibility of splits and masking.
+            upsampling_factor (int, default=1):
+                Factor by which to upsample minority classes during training.
+
+        Returns:
+            List[Dict[str, float]]:
+                A list of length ``k``, where each element is a dictionary containing
+                the averaged metrics for that fold:
+
+                - ``"accuracy"`` (float): Mean accuracy across targets.
+                - ``"precision"`` (float): Mean weighted precision across targets.
+                - ``"recall"`` (float): Mean weighted recall across targets.
+                - ``"f1"`` (float): Mean weighted F1-score across targets.
+
+                If no valid samples exist for a target in a fold, the corresponding
+                metric is set to ``numpy.nan``.
+
+        Raises:
+            ValueError: If ``k`` is less than 2 or greater than the number of samples.
+            ValueError: If ``masking_prob`` is not between 0 and 1.
+
+        Notes:
+            - Masked values are excluded from metric computation.
+            - Predictions outside the set of classes seen during training are ignored.
+            - This method creates a fresh model instance for each fold to avoid leakage.
+        """
         df = self._to_dataframe(df)
         input_columns, target_columns = self._resolve_columns(df, input_columns, target_columns)
 
@@ -611,18 +662,19 @@ class TSModel:
         for train_idx, test_idx in kf.split(df):
             df_train, df_test = df.iloc[train_idx], df.iloc[test_idx]
 
-            cm = self.__class__(base_model=self.base_model, mask_prob=self.mask_prob)
+            cm = self.__class__(base_model=self.base_model)
             cm.fit(
                 df_train,
                 input_columns=input_columns,
                 target_columns=target_columns,
                 test_prop=0.0,
                 masking_value=masking_value,
+                masking_prob=masking_prob,
                 random_seed=random_seed,
                 upsampling_factor=upsampling_factor,
             )
 
-            X_test_masked = cm._random_masking(df_test[input_columns], random_seed=random_seed)
+            X_test_masked = cm._random_masking(df_test[input_columns], masking_prob=masking_prob, random_seed=random_seed)
             Y_pred = cm.predict(X_test_masked)
 
             fold_metrics = {"accuracy": [], "precision": [], "recall": [], "f1": []}

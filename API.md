@@ -28,11 +28,11 @@ A "missing" value is any entry equal to `masking_value` or `np.nan`.
 **Attributes**:
 
 - `base_model` _ClassifierMixin_ - User-provided multi-output classifier prototype.
-- `mask_prob` _float_ - Probability used to mask any given input cell during training.
 - `fitted_model` _Optional[ClassifierMixin]_ - Trained classifier after `fit`.
 - `input_columns` _Optional[List[Union[str, int]]]_ - Columns used as inputs.
 - `target_columns` _Optional[List[Union[str, int]]]_ - Columns used as targets.
 - `masking_value` _Optional[Union[float, int]]_ - Placeholder used to denote missingness.
+- `masking_prob` _float_ - Probability used to mask any given input cell during training.
 - `df_holdout` _Optional[pd.DataFrame]_ - Held-out evaluation dataframe (unmodified).
 - `df_holdout_masked` _Optional[pd.DataFrame]_ - Masked inputs corresponding to the holdout.
 
@@ -41,7 +41,7 @@ A "missing" value is any entry equal to `masking_value` or `np.nan`.
 #### \_\_init\_\_
 
 ```python
-def __init__(base_model: ClassifierMixin, mask_prob: float = 0.5) -> None
+def __init__(base_model: ClassifierMixin) -> None
 ```
 
 Initialize TSModel.
@@ -50,13 +50,6 @@ Initialize TSModel.
 
 - `base_model` _ClassifierMixin_ - Any multi-output-capable classifier
   (e.g., DecisionTreeClassifier, RandomForestClassifier). It is cloned in fit().
-- `mask_prob` _float_ - Probability of masking an input cell during denoising training.
-  Must be in [0, 1].
-  
-
-**Raises**:
-
-- `ValueError` - If mask_prob is not in [0, 1].
 
 <a id="tabsmith.model.TSModel.fit"></a>
 
@@ -68,6 +61,7 @@ def fit(df: Union[pd.DataFrame, np.ndarray],
         target_columns: Optional[Iterable] = None,
         test_prop: float = 0.2,
         masking_value: Union[float, int, None] = -1.0,
+        masking_prob: float = 0.5,
         random_seed: int = 42,
         upsampling_factor: int = 1) -> "TSModel"
 ```
@@ -79,7 +73,7 @@ This method:
 * Ensures the masking value is part of each encoder's classes.
 * Optionally splits into training and holdout sets.
 * Optionally upsamples the training set.
-* Masks inputs randomly according to `mask_prob`.
+* Masks inputs randomly according to `masking_prob`.
 * Drops rows with missing targets before fitting.
 
 **Arguments**:
@@ -89,6 +83,7 @@ This method:
 - `target_columns` - Columns to predict. If None, inferred.
 - `test_prop` - Fraction of data to hold out for evaluation.
 - `masking_value` - Value used to represent masked entries.
+- `masking_prob` - Probability of masking an input cell during denoising training.
 - `random_seed` - Random seed for reproducibility.
 - `upsampling_factor` - Multiplier for training rows before masking.
   
@@ -339,15 +334,77 @@ in the holdout set, as well as macro-averaged metrics across all targets.
 
 ```python
 def cross_validate_kfold(df: pd.DataFrame,
-                         input_columns=None,
-                         target_columns=None,
+                         input_columns: Optional[Iterable] = None,
+                         target_columns: Optional[Iterable] = None,
                          k: int = 5,
-                         masking_value=-1,
+                         masking_value: Union[float, int, None] = -1.0,
+                         masking_prob: float = 0.5,
                          random_seed: int = 42,
                          upsampling_factor: int = 1)
 ```
 
-Perform K-fold cross-validation with clean per-target metrics and masked-value handling.
+Perform K-fold cross-validation with per-target metrics and masked-value handling.
+
+This method splits the provided dataset into ``k`` folds, training and evaluating
+the model on each fold. It supports masking a proportion of input values to simulate
+missing data (denoising) and computes clean per-target metrics by excluding masked
+values and predictions outside the set of trained classes.
+
+For each fold:
+* A new model instance is trained on the training split.
+* The test split is masked according to ``masking_prob`` and ``masking_value``.
+* Predictions are generated and evaluated only on valid, unmasked entries.
+* Accuracy, precision, recall, and F1-score are computed per target column
+and averaged across targets.
+
+**Arguments**:
+
+  df (pd.DataFrame):
+  Input dataset containing both features and target columns.
+  input_columns (Optional[Iterable], default=None):
+  List or iterable of column names to use as input features.
+  If ``None``, input columns are inferred automatically.
+  target_columns (Optional[Iterable], default=None):
+  List or iterable of column names to use as prediction targets.
+  If ``None``, target columns are inferred automatically.
+  k (int, default=5):
+  Number of folds for K-fold cross-validation.
+  masking_value (Union[float, int, None], default=-1.0):
+  Value used to represent masked (missing) entries in the dataset.
+  masking_prob (float, default=0.5):
+  Probability of masking each input value during evaluation.
+  random_seed (int, default=42):
+  Random seed for reproducibility of splits and masking.
+  upsampling_factor (int, default=1):
+  Factor by which to upsample minority classes during training.
+  
+
+**Returns**:
+
+  List[Dict[str, float]]:
+  A list of length ``k``, where each element is a dictionary containing
+  the averaged metrics for that fold:
+  
+  - ``"accuracy"`` (float): Mean accuracy across targets.
+  - ``"precision"`` (float): Mean weighted precision across targets.
+  - ``"recall"`` (float): Mean weighted recall across targets.
+  - ``"f1"`` (float): Mean weighted F1-score across targets.
+  
+  If no valid samples exist for a target in a fold, the corresponding
+  metric is set to ``numpy.nan``.
+  
+
+**Raises**:
+
+- `ValueError` - If ``k`` is less than 2 or greater than the number of samples.
+- `ValueError` - If ``masking_prob`` is not between 0 and 1.
+  
+
+**Notes**:
+
+  - Masked values are excluded from metric computation.
+  - Predictions outside the set of classes seen during training are ignored.
+  - This method creates a fresh model instance for each fold to avoid leakage.
 
 <a id="tabsmith.utils"></a>
 
@@ -389,7 +446,7 @@ or `CategoricalDtype`. All values are converted to strings before encoding.
 #### mask\_df
 
 ```python
-def mask_df(df: pd.DataFrame, mask_prob: float, masking_value,
+def mask_df(df: pd.DataFrame, masking_prob: float, masking_value,
             seed: int) -> pd.DataFrame
 ```
 
@@ -401,7 +458,7 @@ of entries in the DataFrame with a specified masking value or NaN.
 **Arguments**:
 
 - `df` _pd.DataFrame_ - The input DataFrame to mask.
-- `mask_prob` _float_ - Probability of masking each individual cell
+- `masking_prob` _float_ - Probability of masking each individual cell
   (between 0 and 1).
 - `masking_value` - Value to insert in masked positions. If `None` or NaN,
   masked entries are set to `np.nan`.

@@ -34,7 +34,7 @@ def encode_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df_encoded
 
 
-def mask_df(df: pd.DataFrame, mask_prob: float, masking_value, seed: int) -> pd.DataFrame:
+def mask_df(df: pd.DataFrame, masking_prob: float, masking_value, seed: int) -> pd.DataFrame:
     """Randomly mask entries in a DataFrame.
 
     This utility is intended for testing. It randomly replaces a proportion
@@ -42,7 +42,7 @@ def mask_df(df: pd.DataFrame, mask_prob: float, masking_value, seed: int) -> pd.
 
     Args:
         df (pd.DataFrame): The input DataFrame to mask.
-        mask_prob (float): Probability of masking each individual cell
+        masking_prob (float): Probability of masking each individual cell
             (between 0 and 1).
         masking_value: Value to insert in masked positions. If `None` or NaN,
             masked entries are set to `np.nan`.
@@ -56,7 +56,7 @@ def mask_df(df: pd.DataFrame, mask_prob: float, masking_value, seed: int) -> pd.
         - If `masking_value` is a float NaN or `None`, pandas' `.mask()` is used.
     """
     rng = np.random.default_rng(seed)
-    mask = rng.random(size=df.shape) < mask_prob
+    mask = rng.random(size=df.shape) < masking_prob
     out = df.copy()
     if masking_value is None or (isinstance(masking_value, float) and np.isnan(masking_value)):
         return out.mask(mask, other=np.nan)
