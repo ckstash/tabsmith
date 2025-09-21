@@ -1,6 +1,6 @@
 # TabSmith
 
-**TabSmith** can fit multi-target tabular ML classifiers with overlapping inputs and targets. It is a flexible, scikit‑learn‑compatible framework for repurposing multi-target classifiers to work as both conventional classifiers and denoisers depending on the inputs. The concept is described in [this article](https://medium.com/data-science/dawn-of-the-denoisers-multi-output-ml-models-for-tabular-data-imputation-317711d7a193).
+**TabSmith** is a Python library that can fit multi-target tabular ML classifiers with overlapping inputs and targets. It is a flexible, scikit‑learn‑compatible framework for repurposing multi-target classifiers to work as both conventional classifiers and denoisers depending on the inputs. The concept is described in [this article](https://medium.com/data-science/dawn-of-the-denoisers-multi-output-ml-models-for-tabular-data-imputation-317711d7a193).
 
 ---
 
