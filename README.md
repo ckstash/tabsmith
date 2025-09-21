@@ -114,5 +114,5 @@ See [here](https://github.com/ckstash/tabsmith/blob/main/API.md)
 
 ## 📜 License
 
-This project is licensed under the terms of the [MIT License](LICENSE).
+This project is licensed under the terms of the [MIT License](https://github.com/ckstash/tabsmith/blob/main/LICENSE).
 
