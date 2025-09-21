@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 import warnings
 
+
 class TSModel:
     """TSModel trains a multi-output classifier to predict original (clean) values
     from stochastically masked inputs. 
