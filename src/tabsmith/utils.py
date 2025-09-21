@@ -5,7 +5,6 @@ from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 from typing import Union, Dict, List, Tuple
 from tabulate import tabulate
-import os
 
 
 def encode_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -151,7 +150,7 @@ def plot_feature_importances(
     plt.figure(figsize=(8, 6))
     plt.barh(features, scores, color=color)
     plt.xlabel("Importance")
-    plt.ylabel("Feature")
+    plt.ylabel("Features")
     plt.title(title)
     plt.gca().invert_yaxis()  # highest importance at top
     plt.tight_layout()
